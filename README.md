@@ -1,5 +1,5 @@
 
-# 📈 Market-Neutral Statistical Pairs Trading Strategy
+# Market-Neutral Statistical Pairs Trading Strategy
 
 A systematic **pairs trading strategy** applied to Indian equities (NIFTY universe),
 using **cointegration**, **mean-reversion half-life filtering**, and
@@ -10,7 +10,7 @@ and risk-aware portfolio construction**.
 
 ---
 
-## 🔍 Strategy Summary (TL;DR)
+## Strategy Summary (TL;DR)
 
 - Identify statistically related stock pairs
 - Trade deviations in their price spread
@@ -52,7 +52,7 @@ Average Pair Sharpe: 0.18
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 - Python
 - NumPy, Pandas
 - Statsmodels
@@ -61,7 +61,7 @@ Average Pair Sharpe: 0.18
 
 ---
 
-## 📌 Why This Project Matters
+## Why This Project Matters
 - Demonstrates statistical arbitrage concepts
 - Applies econometrics to real financial data
 - Shows understanding of risk-adjusted returns
@@ -69,7 +69,7 @@ Average Pair Sharpe: 0.18
 
 ---
 
-## ⚠️ Disclaimer
+## Disclaimer
 Educational and research purposes only. Not financial advice.
 
 
