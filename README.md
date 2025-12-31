@@ -1,109 +1,171 @@
-# Cluster-Based Pairs Trading Strategy (NIFTY100)
+# Cluster-Based Pairs Trading Strategy (Agglomerative Clustering)
 
-## Purpose
+## Overview
 
-This project implements a **realistic market-neutral pairs trading strategy**
-on Indian equities (NIFTY100).  
-The goal is to demonstrate a **robust quantitative research pipeline**
-that avoids common backtesting pitfalls such as look-ahead bias,
-implicit leverage, and overtrading.
+This project implements a **cluster-based statistical arbitrage strategy** for equity pairs trading using **Agglomerative Clustering** instead of traditional cointegration tests.
 
-The strategy focuses on **statistical mean reversion** using:
-- Agglomerative clustering for pair discovery
-- Cointegration for spread validity
-- Z-score–based trading signals
-- Daily top-K pair selection
-- Volatility-controlled portfolio construction
+The core idea is to:
+- Group stocks with **similar return behavior** using unsupervised learning
+- Trade **temporary divergences** between closely related stocks
+- Control risk using **daily pair selection, cluster caps, minimum holding periods, and volatility targeting**
+- Evaluate performance strictly **out-of-sample**
 
----
-
-## Data
-
-- **Universe:** NIFTY100 stocks  
-- **Source:** Yahoo Finance (`yfinance`)
-- **Time Period:**
-  - Training / Selection: **2019–2024**
-  - Out-of-Sample Test: **2025**
+The strategy is designed as a **realistic research backtest**, explicitly addressing common sources of overfitting such as:
+- Lookahead bias reminding
+- Pair overcrowding
+- Excessive leverage
+- Unrealistic execution assumptions
 
 ---
 
-## Strategy Overview
+## Strategy Summary (High Level)
 
-### 1. Pair Discovery (Training Only)
-- Compute daily returns
-- Standardize return vectors
-- Apply **Agglomerative Clustering (Ward linkage)**
-- Generate stock pairs within clusters
-- Rank by similarity
-- Cap candidate universe
-
-> Clustering is used only for **pair selection**, never for trading signals.
-
----
-
-### 2. Cointegration Filter
-- Apply Engle–Granger test on training data
-- Retain only stationary spreads
-- Reduces false mean-reversion signals
+1. **Universe**: NIFTY 100 equities
+2. **Training Period**: 2019–2024 (pair selection & parameter estimation)
+3. **Testing Period**: 2025 (fully out-of-sample)
+4. **Pair Selection**: Agglomerative clustering on historical returns
+5. **Signal**: Z-score of log-price spread
+6. **Execution**: Daily top-15 strongest signals with cluster diversification
+7. **Risk Control**:
+   - Minimum holding period
+   - Volatility targeting
+   - Hard leverage cap
 
 ---
 
-### 3. Spread Construction
-For each pair:
-Spread = log(P_A) - β * log(P_B)
+## Detailed Strategy Explanation
 
-- β estimated via rolling OLS
-- Used strictly as a **hedge ratio**
+### 1. Data Collection & Cleaning
 
----
+- Daily adjusted close prices are downloaded using `yfinance`
+- Stocks with missing or incomplete data are removed
+- Prices are split into:
+  - **Selection window** (2019–2024)
+  - **Out-of-sample backtest window** (2025)
 
-### 4. Signal Generation (Out-of-Sample)
-- Rolling mean & standard deviation
-- Z-score computation
-- Entry on large deviations
-- Exit on reversion
-- Transaction costs included
-- Signals are **lagged** (no look-ahead)
+This strict separation ensures no future information leakage.
 
 ---
 
-### 5. Daily Top-K Pair Selection
-- Rank pairs daily by |z-score|
-- Trade **only top 15 pairs**
-- Optional cluster diversification cap
+### 2. Feature Construction
 
-This step prevents overtrading and Sharpe inflation.
+- Daily percentage returns are computed using selection-period prices
+- Each stock is represented as a **vector of historical returns**
+- Features are standardized using `StandardScaler`
 
----
-
-### 6. Portfolio Construction
-- Equal-weighted across active pairs
-- Volatility targeting
-- Leverage cap
-- Aggregate portfolio PnL
+This representation captures **co-movement behavior** rather than price levels.
 
 ---
 
-## Final Out-of-Sample Performance (2025)
+### 3. Agglomerative Clustering (Pair Selection)
 
-- **Portfolio Sharpe:** ~1.5  
-- **Max Drawdown:** ~8%  
-- **Max active pairs per day:** 15  
-- **Candidate universe:** ~120 pairs  
+- Stocks are clustered using **Ward linkage**
+- Distance metric: Euclidean distance between standardized return vectors
+- Only stock pairs **within the same cluster** are considered candidates
 
-These results are intentionally conservative and realistic.
+This replaces traditional cointegration testing with a **data-driven similarity approach**.
+
+A fixed cap is applied to limit the candidate universe size.
 
 ---
 
-## Disclaimer
+### 4. Spread Construction
 
-This project is for **research and educational purposes only**  
-and does not constitute investment advice.
+For each candidate pair:
 
-## Installation
+- A hedge ratio (`beta`) is estimated using **OLS regression** on training data
+- The trading spread is defined as:
 
-Clone the repository and install dependencies:
+\[
+s_t = \log(P_A) - \beta \log(P_B)
+\]
 
-```bash
-pip install -r requirements.txt
+This creates a scale-invariant spread suitable for mean-reversion signals.
 
+---
+
+### 5. Signal Generation
+
+- A rolling z-score of the spread is computed
+- Entry signals trigger when the z-score exceeds a threshold
+- Positions are exited once the spread normalizes
+
+Signals are **evaluated with a T+1 execution delay** to avoid same-day lookahead bias.
+
+---
+
+### 6. Daily Pair Selection (Top-15 Constraint)
+
+To prevent overtrading and crowding:
+
+- All candidate pairs generate signals daily
+- Only the **top 15 strongest signals** (by |z-score|) are traded
+- A **cluster cap** ensures no two selected pairs come from the same cluster
+
+This enforces **diversification across latent market factors**.
+
+---
+
+### 7. Holding Period Constraint
+
+- A minimum holding period (e.g., 5 days) is enforced
+- Prevents excessive turnover and noise-driven trades
+- Improves realism under transaction costs
+
+---
+
+### 8. Portfolio Construction & Risk Management
+
+- Pair-level PnLs are aggregated daily
+- Portfolio volatility is estimated using a rolling window
+- PnL is scaled to target a fixed volatility level
+- A hard leverage cap prevents unrealistic exposure
+
+---
+
+### 9. Performance Evaluation
+
+The following metrics are computed on **out-of-sample data only**:
+
+- Annualized Sharpe ratio
+- Maximum drawdown
+- Equity curve
+- Rolling and expanding Sharpe ratios
+
+All performance plots are automatically saved to the `plots/` directory.
+
+---
+
+## Results (2025 Out-of-Sample)
+
+Typical observed performance (example run):
+
+- **Annualized Sharpe**: ~1.5
+- **Max Drawdown**: ~8–10%
+- **Active Trading Days**: ~30–40%
+- **Pairs Traded per Day**: ≤ 15
+
+Results vary depending on clustering granularity and signal thresholds.
+
+---
+
+## Limitations & Considerations
+
+- No transaction cost modeling beyond simple linear costs
+- No short-sale constraints or borrow fees
+- No regime detection (performance may degrade in trending markets)
+- Clustering assumes return similarity is stable over time
+- Strategy is research-grade, not production-ready
+
+This implementation is designed for **robustness and interpretability**, not maximal Sharpe optimization.
+
+---
+
+## How to Run
+
+### 1. Install Dependencies
+
+In Jupyter:
+
+```python
+%pip install yfinance statsmodels scikit-learn pandas numpy matplotlib
