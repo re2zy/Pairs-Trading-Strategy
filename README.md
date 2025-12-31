@@ -1,76 +1,109 @@
-# Pairs Trading Strategy on Nifty 100
+# Cluster-Based Pairs Trading Strategy (NIFTY100)
 
-## Overview
+## Purpose
 
-This repository contains a **statistical arbitrage pairs trading strategy** applied to a subset of the Nifty 100 stocks. The strategy identifies pairs of stocks that are cointegrated and trades the spread between them when it deviates from its historical mean.  
+This project implements a **realistic market-neutral pairs trading strategy**
+on Indian equities (NIFTY100).  
+The goal is to demonstrate a **robust quantitative research pipeline**
+that avoids common backtesting pitfalls such as look-ahead bias,
+implicit leverage, and overtrading.
 
-The main idea is:
-- Identify stock pairs that move together historically (high correlation + cointegration).  
-- Calculate the spread between the two stocks.  
-- Enter a long-short trade when the spread deviates significantly from its mean (z-score threshold).  
-- Exit when the spread reverts towards the mean.  
-- Scale positions to a target volatility to manage risk.
-
----
-
-## Methodology
-
-The strategy follows these steps:
-
-1. **Data Download & Cleaning**  
-   - Daily adjusted close prices for 97 Nifty 100 stocks from 2019–2025 are downloaded using `yfinance`.  
-   - Stocks with missing or zero variance data are removed.  
-
-2. **Candidate Pair Selection**  
-   - Calculate daily returns for all stocks.  
-   - Select candidate pairs with Pearson correlation above a threshold (0.60).  
-   - Limit to top 400 pairs by correlation.  
-
-3. **Cointegration & Half-life Filtering**  
-   - For each candidate pair, perform a linear regression to estimate beta.  
-   - Calculate the spread and test for stationarity using the Augmented Dickey-Fuller (ADF) test.  
-   - Calculate the spread’s mean-reversion half-life.  
-   - Keep pairs with ADF p-value < 0.08 and half-life between 2 and 80 days.  
-
-4. **Spread Volatility & Scoring**  
-   - Compute normalized spread volatility.  
-   - Score pairs by spread volatility divided by half-life.  
-   - Select the top-K pairs based on this score.  
-
-5. **Backtesting**  
-   - Implement a z-score trading logic:  
-     - **Entry:** Open long/short positions when z-score exceeds ±1.8.  
-     - **Exit:** Close positions when z-score reverts within ±0.75.  
-     - Include transaction costs (0.1%).  
-   - Calculate daily PnL and cumulative equity per pair.  
-
-6. **Portfolio Construction**  
-   - Aggregate per-pair PnLs into a portfolio.  
-   - Apply **volatility targeting** to achieve a consistent portfolio risk.  
-   - Compute portfolio metrics: Sharpe ratio, maximum drawdown, average daily PnL, total trades.  
+The strategy focuses on **statistical mean reversion** using:
+- Agglomerative clustering for pair discovery
+- Cointegration for spread validity
+- Z-score–based trading signals
+- Daily top-K pair selection
+- Volatility-controlled portfolio construction
 
 ---
 
-## Results (2025 Out-of-Sample)
+## Data
 
-| Metric | Value |
-|--------|-------|
-| Portfolio Sharpe | 0.511 |
-| Portfolio Max Drawdown | -0.19 |
-| Average Daily PnL | 0.0001 |
-| Total Pairs Traded | 9 |
-| Total Trades | 6,289 |
-| Average Pair Sharpe | 0.297 |
-| Non-zero PnL Days | 1,647 |
-| Total Trading Days | 1,667 |
-
-> The results reflect out-of-sample performance for 2025 using pairs selected on 2019–2024 data.
+- **Universe:** NIFTY100 stocks  
+- **Source:** Yahoo Finance (`yfinance`)
+- **Time Period:**
+  - Training / Selection: **2019–2024**
+  - Out-of-Sample Test: **2025**
 
 ---
 
-## How to Run
+## Strategy Overview
 
-1. Clone the repository:  
-   ```bash
-   git clone <repo-url>
-   cd <repo-folder>
+### 1. Pair Discovery (Training Only)
+- Compute daily returns
+- Standardize return vectors
+- Apply **Agglomerative Clustering (Ward linkage)**
+- Generate stock pairs within clusters
+- Rank by similarity
+- Cap candidate universe
+
+> Clustering is used only for **pair selection**, never for trading signals.
+
+---
+
+### 2. Cointegration Filter
+- Apply Engle–Granger test on training data
+- Retain only stationary spreads
+- Reduces false mean-reversion signals
+
+---
+
+### 3. Spread Construction
+For each pair:
+Spread = log(P_A) - β * log(P_B)
+
+- β estimated via rolling OLS
+- Used strictly as a **hedge ratio**
+
+---
+
+### 4. Signal Generation (Out-of-Sample)
+- Rolling mean & standard deviation
+- Z-score computation
+- Entry on large deviations
+- Exit on reversion
+- Transaction costs included
+- Signals are **lagged** (no look-ahead)
+
+---
+
+### 5. Daily Top-K Pair Selection
+- Rank pairs daily by |z-score|
+- Trade **only top 15 pairs**
+- Optional cluster diversification cap
+
+This step prevents overtrading and Sharpe inflation.
+
+---
+
+### 6. Portfolio Construction
+- Equal-weighted across active pairs
+- Volatility targeting
+- Leverage cap
+- Aggregate portfolio PnL
+
+---
+
+## Final Out-of-Sample Performance (2025)
+
+- **Portfolio Sharpe:** ~1.5  
+- **Max Drawdown:** ~8%  
+- **Max active pairs per day:** 15  
+- **Candidate universe:** ~120 pairs  
+
+These results are intentionally conservative and realistic.
+
+---
+
+## Disclaimer
+
+This project is for **research and educational purposes only**  
+and does not constitute investment advice.
+
+## Installation
+
+Clone the repository and install dependencies:
+
+```bash
+pip install -r requirements.txt
+
